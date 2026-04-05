@@ -515,8 +515,15 @@ export function registerIpcHandlers(
 		"save-exported-video-to-path",
 		async (_, videoData: ArrayBuffer, filePath: string) => {
 			try {
-				await fs.writeFile(filePath, Buffer.from(videoData));
-				return { success: true, path: filePath };
+				// Restrict writes to the user's Downloads folder to prevent path traversal.
+				const downloadsRoot = path.resolve(app.getPath("downloads"));
+				const safeFileName = path.basename(filePath).replace(/[/\\]/g, "");
+				const destination = path.resolve(path.join(downloadsRoot, safeFileName));
+				if (!destination.startsWith(downloadsRoot + path.sep) && destination !== downloadsRoot) {
+					return { success: false, error: "Invalid path: destination is outside Downloads folder" };
+				}
+				await fs.writeFile(destination, Buffer.from(videoData));
+				return { success: true, path: destination };
 			} catch (error) {
 				console.error("Failed to save exported video to path:", error);
 				return { success: false, error: String(error) };

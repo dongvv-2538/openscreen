@@ -309,15 +309,22 @@ function createEditorWindowWrapper() {
 				win.hide();
 				win.webContents.send("background-export-ready", app.getPath("downloads"));
 			} else if (choice === 1) {
-				// Cancel Export & Close: tell renderer to cancel, then force-close
+				// Cancel Export & Close: ask the renderer to cancel, then re-trigger
+				// the normal close so the unsaved-changes guard can run.
 				win.webContents.send("cancel-export-and-close");
+				const onCancelled = () => {
+					clearTimeout(fallback);
+					// editorIsExporting is now false (renderer sent set-is-exporting false
+					// before ACKing), so the next close will fall through to the
+					// unsaved-changes check rather than looping back here.
+					win.close();
+				};
 				const fallback = setTimeout(() => {
+					ipcMain.removeListener("export-cancelled-done", onCancelled);
+					// Renderer never responded — force close as last resort.
 					forceCloseEditorWindow(win);
 				}, 5000);
-				ipcMain.once("export-cancelled-done", () => {
-					clearTimeout(fallback);
-					forceCloseEditorWindow(win);
-				});
+				ipcMain.once("export-cancelled-done", onCancelled);
 			}
 			// choice === 2: Keep Open — do nothing
 			return;
