@@ -124,6 +124,28 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	setHasUnsavedChanges: (hasChanges: boolean) => {
 		ipcRenderer.send("set-has-unsaved-changes", hasChanges);
 	},
+	setIsExporting: (isExporting: boolean) => {
+		ipcRenderer.send("set-is-exporting", isExporting);
+	},
+	saveExportedVideoToPath: (videoData: ArrayBuffer, filePath: string) => {
+		return ipcRenderer.invoke("save-exported-video-to-path", videoData, filePath);
+	},
+	sendExportNotification: (format: string, filePath: string) => {
+		return ipcRenderer.invoke("send-export-notification", format, filePath);
+	},
+	onBackgroundExportReady: (callback: (downloadsDir: string) => void) => {
+		const listener = (_: Electron.IpcRendererEvent, downloadsDir: string) => callback(downloadsDir);
+		ipcRenderer.on("background-export-ready", listener);
+		return () => ipcRenderer.removeListener("background-export-ready", listener);
+	},
+	onCancelExportAndClose: (callback: () => void) => {
+		const listener = () => callback();
+		ipcRenderer.on("cancel-export-and-close", listener);
+		return () => ipcRenderer.removeListener("cancel-export-and-close", listener);
+	},
+	exportCancelledDone: () => {
+		ipcRenderer.send("export-cancelled-done");
+	},
 	onRequestSaveBeforeClose: (callback: () => Promise<boolean> | boolean) => {
 		const listener = async () => {
 			try {

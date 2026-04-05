@@ -135,6 +135,18 @@ interface Window {
 		hudOverlayClose: () => void;
 		setMicrophoneExpanded: (expanded: boolean) => void;
 		setHasUnsavedChanges: (hasChanges: boolean) => void;
+		setIsExporting: (isExporting: boolean) => void;
+		saveExportedVideoToPath: (
+			videoData: ArrayBuffer,
+			filePath: string,
+		) => Promise<{ success: boolean; path?: string; error?: string }>;
+		sendExportNotification: (
+			format: string,
+			filePath: string,
+		) => Promise<{ success: boolean; message?: string; error?: string }>;
+		onBackgroundExportReady: (callback: (downloadsDir: string) => void) => () => void;
+		onCancelExportAndClose: (callback: () => void) => () => void;
+		exportCancelledDone: () => void;
 		onRequestSaveBeforeClose: (callback: () => Promise<boolean> | boolean) => () => void;
 		setLocale: (locale: string) => Promise<void>;
 	};

@@ -53,6 +53,15 @@
 		"saveProject": "保存项目…",
 		"saveProjectAs": "项目另存为…"
 	},
+	"exportInBackground": {
+		"title": "正在导出",
+		"message": "当前正在执行导出操作。",
+		"detail": "是否在后台继续导出？文件将保存到您的下载文件夹，完成后您将收到通知。",
+		"continueInBackground": "在后台继续",
+		"cancelAndClose": "取消导出并关闭",
+		"completeNotificationTitle": "导出完成",
+		"completeNotificationBody": "{{format}} 已保存至 {{filename}}"
+	},
 	"fileDialogs": {
 		"saveGif": "保存导出的 GIF",
 		"saveVideo": "保存导出的视频",

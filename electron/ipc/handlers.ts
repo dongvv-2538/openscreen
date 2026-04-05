@@ -7,6 +7,7 @@ import {
 	desktopCapturer,
 	dialog,
 	ipcMain,
+	Notification,
 	screen,
 	shell,
 	systemPreferences,
@@ -507,6 +508,43 @@ export function registerIpcHandlers(
 				message: "Failed to save exported video",
 				error: String(error),
 			};
+		}
+	});
+
+	ipcMain.handle(
+		"save-exported-video-to-path",
+		async (_, videoData: ArrayBuffer, filePath: string) => {
+			try {
+				await fs.writeFile(filePath, Buffer.from(videoData));
+				return { success: true, path: filePath };
+			} catch (error) {
+				console.error("Failed to save exported video to path:", error);
+				return { success: false, error: String(error) };
+			}
+		},
+	);
+
+	ipcMain.handle("send-export-notification", async (_, format: string, filePath: string) => {
+		try {
+			if (!Notification.isSupported()) {
+				return { success: false, message: "Notifications not supported" };
+			}
+			const fileName = path.basename(filePath);
+			const notification = new Notification({
+				title: mainT("dialogs", "exportInBackground.completeNotificationTitle"),
+				body: mainT("dialogs", "exportInBackground.completeNotificationBody", {
+					format,
+					filename: fileName,
+				}),
+			});
+			notification.on("click", () => {
+				shell.showItemInFolder(filePath);
+			});
+			notification.show();
+			return { success: true };
+		} catch (error) {
+			console.error("Failed to send export notification:", error);
+			return { success: false, error: String(error) };
 		}
 	});
 

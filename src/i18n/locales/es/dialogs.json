@@ -53,6 +53,15 @@
 		"saveProject": "Guardar proyecto…",
 		"saveProjectAs": "Guardar proyecto como…"
 	},
+	"exportInBackground": {
+		"title": "Exportación en progreso",
+		"message": "Hay una exportación en curso.",
+		"detail": "¿Continuar exportando en segundo plano? El archivo se guardará en tu carpeta de Descargas. Recibirás una notificación cuando termine.",
+		"continueInBackground": "Continuar en segundo plano",
+		"cancelAndClose": "Cancelar exportación y cerrar",
+		"completeNotificationTitle": "Exportación completa",
+		"completeNotificationBody": "{{format}} guardado en {{filename}}"
+	},
 	"fileDialogs": {
 		"saveGif": "Guardar GIF exportado",
 		"saveVideo": "Guardar video exportado",

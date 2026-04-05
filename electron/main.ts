@@ -244,10 +244,15 @@ function updateTrayMenu(recording: boolean = false) {
 }
 
 let editorHasUnsavedChanges = false;
+let editorIsExporting = false;
 let isForceClosing = false;
 
 ipcMain.on("set-has-unsaved-changes", (_, hasChanges: boolean) => {
 	editorHasUnsavedChanges = hasChanges;
+});
+
+ipcMain.on("set-is-exporting", (_, isExporting: boolean) => {
+	editorIsExporting = isExporting;
 });
 
 function forceCloseEditorWindow(windowToClose: BrowserWindow | null) {
@@ -276,7 +281,49 @@ function createEditorWindowWrapper() {
 	editorHasUnsavedChanges = false;
 
 	mainWindow.on("close", (event) => {
-		if (isForceClosing || !editorHasUnsavedChanges) return;
+		if (isForceClosing) return;
+
+		// If an export is running, offer background export instead of closing
+		if (editorIsExporting) {
+			event.preventDefault();
+
+			const choice = dialog.showMessageBoxSync(mainWindow!, {
+				type: "info",
+				buttons: [
+					mainT("dialogs", "exportInBackground.continueInBackground"),
+					mainT("dialogs", "exportInBackground.cancelAndClose"),
+					mainT("common", "actions.cancel"),
+				],
+				defaultId: 0,
+				cancelId: 2,
+				title: mainT("dialogs", "exportInBackground.title"),
+				message: mainT("dialogs", "exportInBackground.message"),
+				detail: mainT("dialogs", "exportInBackground.detail"),
+			});
+
+			const win = mainWindow;
+			if (!win || win.isDestroyed()) return;
+
+			if (choice === 0) {
+				// Continue in Background: hide the window and let renderer know
+				win.hide();
+				win.webContents.send("background-export-ready", app.getPath("downloads"));
+			} else if (choice === 1) {
+				// Cancel Export & Close: tell renderer to cancel, then force-close
+				win.webContents.send("cancel-export-and-close");
+				const fallback = setTimeout(() => {
+					forceCloseEditorWindow(win);
+				}, 5000);
+				ipcMain.once("export-cancelled-done", () => {
+					clearTimeout(fallback);
+					forceCloseEditorWindow(win);
+				});
+			}
+			// choice === 2: Keep Open — do nothing
+			return;
+		}
+
+		if (!editorHasUnsavedChanges) return;
 
 		event.preventDefault();
 
