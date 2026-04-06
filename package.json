@@ -49,6 +49,7 @@
 		"emoji-picker-react": "^4.16.1",
 		"fix-webm-duration": "^1.0.6",
 		"gif.js": "^0.2.0",
+		"gifsicle": "^7.0.1",
 		"gsap": "^3.13.0",
 		"lucide-react": "^0.545.0",
 		"mediabunny": "^1.25.1",

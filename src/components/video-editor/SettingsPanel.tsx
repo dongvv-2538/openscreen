@@ -197,7 +197,7 @@ export function SettingsPanel({
 	onExportQualityChange,
 	exportFormat = "mp4",
 	onExportFormatChange,
-	gifFrameRate = 15,
+	gifFrameRate = 10,
 	onGifFrameRateChange,
 	gifLoop = true,
 	onGifLoopChange,

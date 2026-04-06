@@ -1,6 +1,9 @@
+import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { promisify } from "node:util";
 import {
 	app,
 	BrowserWindow,
@@ -21,6 +24,58 @@ import {
 } from "../../src/lib/recordingSession";
 import { mainT } from "../i18n";
 import { RECORDINGS_DIR } from "../main";
+
+const execFileAsync = promisify(execFile);
+
+/**
+ * Returns the path to the bundled gifsicle binary without importing the gifsicle
+ * package (which uses import.meta.url internally and breaks when bundled by Vite).
+ * In a packaged Electron app with asarUnpack the binary lives in app.asar.unpacked.
+ */
+function getGifsiclePath(): string {
+	const binaryName = process.platform === "win32" ? "gifsicle.exe" : "gifsicle";
+	const relPath = path.join("node_modules", "gifsicle", "vendor", binaryName);
+	if (app.isPackaged) {
+		// process.resourcesPath is e.g. /tmp/.mount_xxx/resources
+		return path.join(process.resourcesPath, "app.asar.unpacked", relPath);
+	}
+	return path.join(app.getAppPath(), relPath);
+}
+
+/**
+ * Run gifsicle -O3 on a GIF buffer and return the optimized buffer.
+ * Falls back to the original buffer if gifsicle fails.
+ */
+async function optimizeGifBuffer(inputBuffer: Buffer): Promise<Buffer> {
+	const tmpDir = os.tmpdir();
+	const tmpInput = path.join(tmpDir, `openscreen-gif-in-${Date.now()}.gif`);
+	const tmpOutput = path.join(tmpDir, `openscreen-gif-out-${Date.now()}.gif`);
+	try {
+		await fs.writeFile(tmpInput, inputBuffer);
+		const gifsiclePath = getGifsiclePath();
+		await execFileAsync(gifsiclePath, [
+			"-O3",
+			"--lossy=40",
+			"--colors",
+			"256",
+			tmpInput,
+			"-o",
+			tmpOutput,
+		]);
+		const optimized = await fs.readFile(tmpOutput);
+		return optimized;
+	} catch (err) {
+		console.warn("[optimize-gif] gifsicle failed, using original:", err);
+		return inputBuffer;
+	} finally {
+		await fs.unlink(tmpInput).catch(() => {
+			// ignore missing tmp file
+		});
+		await fs.unlink(tmpOutput).catch(() => {
+			// ignore missing tmp file
+		});
+	}
+}
 
 const PROJECT_FILE_EXTENSION = "openscreen";
 const SHORTCUTS_FILE = path.join(app.getPath("userData"), "shortcuts.json");
@@ -648,7 +703,11 @@ export function registerIpcHandlers(
 				};
 			}
 
-			await fs.writeFile(result.filePath, Buffer.from(videoData));
+			let dataToWrite: Buffer = Buffer.from(videoData as ArrayBuffer);
+			if (isGif) {
+				dataToWrite = await optimizeGifBuffer(dataToWrite);
+			}
+			await fs.writeFile(result.filePath, dataToWrite);
 
 			return {
 				success: true,
@@ -676,7 +735,12 @@ export function registerIpcHandlers(
 				if (!destination.startsWith(downloadsRoot + path.sep) && destination !== downloadsRoot) {
 					return { success: false, error: "Invalid path: destination is outside Downloads folder" };
 				}
-				await fs.writeFile(destination, Buffer.from(videoData));
+				const isGif = safeFileName.toLowerCase().endsWith(".gif");
+				let dataToWrite: Buffer = Buffer.from(videoData as ArrayBuffer);
+				if (isGif) {
+					dataToWrite = await optimizeGifBuffer(dataToWrite);
+				}
+				await fs.writeFile(destination, dataToWrite);
 				return { success: true, path: destination };
 			} catch (error) {
 				console.error("Failed to save exported video to path:", error);
