@@ -138,6 +138,7 @@ export default function VideoEditor() {
 	const nextAnnotationIdRef = useRef(1);
 	const nextAnnotationZIndexRef = useRef(1);
 	const exporterRef = useRef<VideoExporter | null>(null);
+	const backgroundExportDirRef = useRef<string | null>(null);
 
 	const currentProjectMedia = useMemo<ProjectMedia | null>(() => {
 		const screenVideoPath = videoSourcePath ?? (videoPath ? fromFileUrl(videoPath) : null);
@@ -462,6 +463,31 @@ export default function VideoEditor() {
 		});
 		return () => cleanup();
 	}, [saveProject]);
+
+	useEffect(() => {
+		const cleanup = window.electronAPI.onBackgroundExportReady((downloadsDir: string) => {
+			backgroundExportDirRef.current = downloadsDir;
+		});
+		return cleanup;
+	}, []);
+
+	useEffect(() => {
+		const cleanup = window.electronAPI.onCancelExportAndClose(() => {
+			const exporter = exporterRef.current;
+			if (exporter) {
+				// Cancel the in-flight export. The handleExport finally-block will
+				// clear state and set isExporting=false. We notify main only after
+				// that settles so the window close doesn't race ahead of cleanup.
+				exporter.cancel();
+				void Promise.resolve()
+					.then(() => new Promise<void>((resolve) => setTimeout(resolve, 0)))
+					.then(() => window.electronAPI.exportCancelledDone());
+			} else {
+				window.electronAPI.exportCancelledDone();
+			}
+		});
+		return cleanup;
+	}, []);
 
 	const handleSaveProject = useCallback(async () => {
 		await saveProject(false);
@@ -1062,6 +1088,7 @@ export default function VideoEditor() {
 			}
 
 			setIsExporting(true);
+			window.electronAPI.setIsExporting(true);
 			setExportProgress(null);
 			setExportError(null);
 			setExportedFilePath(null);
@@ -1127,17 +1154,51 @@ export default function VideoEditor() {
 						const timestamp = Date.now();
 						const fileName = `export-${timestamp}.gif`;
 
-						const saveResult = await window.electronAPI.saveExportedVideo(arrayBuffer, fileName);
-
-						if (saveResult.canceled) {
-							setUnsavedExport({ arrayBuffer, fileName, format: "gif" });
-							toast.info("Export canceled");
-						} else if (saveResult.success && saveResult.path) {
-							setUnsavedExport(null);
-							handleExportSaved("GIF", saveResult.path);
+						const bgDir = backgroundExportDirRef.current;
+						if (bgDir) {
+							// Background export: auto-save to Downloads without a dialog
+							const fullPath = `${bgDir}/${fileName}`;
+							try {
+								const saveResult = await window.electronAPI.saveExportedVideoToPath(
+									arrayBuffer,
+									fullPath,
+								);
+								if (saveResult.success && saveResult.path) {
+									await window.electronAPI.sendExportNotification("GIF", saveResult.path);
+								} else {
+									throw new Error(saveResult.error || "Background save failed");
+								}
+							} catch (bgError) {
+								console.error("Background GIF save failed, falling back to dialog:", bgError);
+								backgroundExportDirRef.current = null;
+								const saveResult = await window.electronAPI.saveExportedVideo(
+									arrayBuffer,
+									fileName,
+								);
+								if (saveResult.canceled) {
+									setUnsavedExport({ arrayBuffer, fileName, format: "gif" });
+									toast.info("Export canceled");
+								} else if (saveResult.success && saveResult.path) {
+									setUnsavedExport(null);
+									handleExportSaved("GIF", saveResult.path);
+								} else {
+									setExportError(saveResult.message || "Failed to save GIF");
+									toast.error(saveResult.message || "Failed to save GIF");
+								}
+							}
 						} else {
-							setExportError(saveResult.message || "Failed to save GIF");
-							toast.error(saveResult.message || "Failed to save GIF");
+							const saveResult = await window.electronAPI.saveExportedVideo(arrayBuffer, fileName);
+
+							if (saveResult.canceled) {
+								setUnsavedExport({ arrayBuffer, fileName, format: "gif" });
+								toast.info("Export canceled");
+							} else if (saveResult.success && saveResult.path) {
+								setUnsavedExport(null);
+								handleExportSaved("GIF", saveResult.path);
+							} else {
+								setExportError(saveResult.message || "Failed to save GIF");
+								toast.error(saveResult.message || "Failed to save GIF");
+							}
 						}
 					} else {
 						setExportError(result.error || "GIF export failed");
@@ -1260,17 +1321,51 @@ export default function VideoEditor() {
 						const timestamp = Date.now();
 						const fileName = `export-${timestamp}.mp4`;
 
-						const saveResult = await window.electronAPI.saveExportedVideo(arrayBuffer, fileName);
-
-						if (saveResult.canceled) {
-							setUnsavedExport({ arrayBuffer, fileName, format: "mp4" });
-							toast.info("Export canceled");
-						} else if (saveResult.success && saveResult.path) {
-							setUnsavedExport(null);
-							handleExportSaved("Video", saveResult.path);
+						const bgDir = backgroundExportDirRef.current;
+						if (bgDir) {
+							// Background export: auto-save to Downloads without a dialog
+							const fullPath = `${bgDir}/${fileName}`;
+							try {
+								const saveResult = await window.electronAPI.saveExportedVideoToPath(
+									arrayBuffer,
+									fullPath,
+								);
+								if (saveResult.success && saveResult.path) {
+									await window.electronAPI.sendExportNotification("Video", saveResult.path);
+								} else {
+									throw new Error(saveResult.error || "Background save failed");
+								}
+							} catch (bgError) {
+								console.error("Background MP4 save failed, falling back to dialog:", bgError);
+								backgroundExportDirRef.current = null;
+								const saveResult = await window.electronAPI.saveExportedVideo(
+									arrayBuffer,
+									fileName,
+								);
+								if (saveResult.canceled) {
+									setUnsavedExport({ arrayBuffer, fileName, format: "mp4" });
+									toast.info("Export canceled");
+								} else if (saveResult.success && saveResult.path) {
+									setUnsavedExport(null);
+									handleExportSaved("Video", saveResult.path);
+								} else {
+									setExportError(saveResult.message || "Failed to save video");
+									toast.error(saveResult.message || "Failed to save video");
+								}
+							}
 						} else {
-							setExportError(saveResult.message || "Failed to save video");
-							toast.error(saveResult.message || "Failed to save video");
+							const saveResult = await window.electronAPI.saveExportedVideo(arrayBuffer, fileName);
+
+							if (saveResult.canceled) {
+								setUnsavedExport({ arrayBuffer, fileName, format: "mp4" });
+								toast.info("Export canceled");
+							} else if (saveResult.success && saveResult.path) {
+								setUnsavedExport(null);
+								handleExportSaved("Video", saveResult.path);
+							} else {
+								setExportError(saveResult.message || "Failed to save video");
+								toast.error(saveResult.message || "Failed to save video");
+							}
 						}
 					} else {
 						setExportError(result.error || "Export failed");
@@ -1287,6 +1382,8 @@ export default function VideoEditor() {
 				setExportError(errorMessage);
 				toast.error(`Export failed: ${errorMessage}`);
 			} finally {
+				window.electronAPI.setIsExporting(false);
+				backgroundExportDirRef.current = null;
 				setIsExporting(false);
 				exporterRef.current = null;
 				// Reset dialog state to ensure it can be opened again on next export
@@ -1383,6 +1480,8 @@ export default function VideoEditor() {
 	const handleCancelExport = useCallback(() => {
 		if (exporterRef.current) {
 			exporterRef.current.cancel();
+			window.electronAPI.setIsExporting(false);
+			backgroundExportDirRef.current = null;
 			toast.info("Export canceled");
 			setShowExportDialog(false);
 			setIsExporting(false);

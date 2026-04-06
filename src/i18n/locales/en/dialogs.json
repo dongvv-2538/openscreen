@@ -53,6 +53,15 @@
 		"saveProject": "Save Project…",
 		"saveProjectAs": "Save Project As…"
 	},
+	"exportInBackground": {
+		"title": "Export in Progress",
+		"message": "An export is currently running.",
+		"detail": "Continue exporting in the background? The file will be saved to your Downloads folder. You'll get a notification when it's done.",
+		"continueInBackground": "Continue in Background",
+		"cancelAndClose": "Cancel Export & Close",
+		"completeNotificationTitle": "Export Complete",
+		"completeNotificationBody": "{{format}} saved to {{filename}}"
+	},
 	"fileDialogs": {
 		"saveGif": "Save Exported GIF",
 		"saveVideo": "Save Exported Video",
