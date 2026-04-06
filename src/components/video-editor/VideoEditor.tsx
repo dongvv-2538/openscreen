@@ -111,7 +111,7 @@ export default function VideoEditor() {
 	const [showExportDialog, setShowExportDialog] = useState(false);
 	const [exportQuality, setExportQuality] = useState<ExportQuality>("good");
 	const [exportFormat, setExportFormat] = useState<ExportFormat>("mp4");
-	const [gifFrameRate, setGifFrameRate] = useState<GifFrameRate>(15);
+	const [gifFrameRate, setGifFrameRate] = useState<GifFrameRate>(10);
 	const [gifLoop, setGifLoop] = useState(true);
 	const [gifSizePreset, setGifSizePreset] = useState<GifSizePreset>("medium");
 	const [exportedFilePath, setExportedFilePath] = useState<string | null>(null);

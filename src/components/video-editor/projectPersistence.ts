@@ -379,14 +379,17 @@ export function normalizeProjectEditor(editor: Partial<ProjectEditorState>): Pro
 				: "good",
 		exportFormat: editor.exportFormat === "gif" ? "gif" : "mp4",
 		gifFrameRate:
+			editor.gifFrameRate === 5 ||
+			editor.gifFrameRate === 10 ||
 			editor.gifFrameRate === 15 ||
 			editor.gifFrameRate === 20 ||
 			editor.gifFrameRate === 25 ||
 			editor.gifFrameRate === 30
 				? editor.gifFrameRate
-				: 15,
+				: 10,
 		gifLoop: typeof editor.gifLoop === "boolean" ? editor.gifLoop : true,
 		gifSizePreset:
+			editor.gifSizePreset === "small" ||
 			editor.gifSizePreset === "medium" ||
 			editor.gifSizePreset === "large" ||
 			editor.gifSizePreset === "original"

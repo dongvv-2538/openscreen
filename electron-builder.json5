@@ -26,6 +26,9 @@
       "to": "assets/wallpapers"
     }
   ],
+  "asarUnpack": [
+    "node_modules/gifsicle/**"
+  ],
   "publish": [{"provider": "github"}],
 
   "mac": {
